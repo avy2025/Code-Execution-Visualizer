@@ -16,3 +16,7 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# Build and temporary files
+bin/
+output.txt
