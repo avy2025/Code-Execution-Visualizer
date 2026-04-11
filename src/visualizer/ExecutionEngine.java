@@ -5,101 +5,137 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 
 /**
- * ExecutionEngine simulates step-by-step execution of parsed Java-like code lines.
- *
- * Supported statement forms:
- *   int a = 5;
- *   int b = 10;
- *   int c = a + b;       // variable on RHS
- *   a = a * 2;           // reassignment
- *   int d = a - b / 2;   // chained (left-to-right, one operator per expression)
- *
- * Supported operators: +  -  *  /
- * Variable store      : HashMap<String, Integer>
+ * ExecutionEngine handles the step-by-step execution.
+ * It now supports a program counter (pc) and basic flow control.
  */
 public class ExecutionEngine {
 
-    // Primary variable store  –  name → Integer value
+    public interface StepListener {
+        void onStepStart(int pc, String line);
+        void onStepEnd(int pc, String line, String state);
+        void onError(int pc, String line, String message);
+        void onExecutionComplete(int totalSteps, int variablesCount);
+    }
+
     private HashMap<String, Integer> variableStore;
-
-    // Step counter for display
-    private int stepCount;
-
-    // Scanner for step-by-step pause
-    private final Scanner inputScanner;
-
-    // -----------------------------------------------------------------------
-    // Constructor
-    // -----------------------------------------------------------------------
+    private List<String> lines;
+    private int pc; // Program Counter (index in lines list)
+    private StepListener listener;
 
     public ExecutionEngine() {
-        this.variableStore = new LinkedHashMap<>();   // LinkedHashMap keeps insertion order for printing
-        this.stepCount = 0;
-        this.inputScanner = new Scanner(System.in);
+        this.variableStore = new LinkedHashMap<>();
+        this.pc = 0;
     }
 
-    // -----------------------------------------------------------------------
-    // Public API
-    // -----------------------------------------------------------------------
+    public void setStepListener(StepListener listener) {
+        this.listener = listener;
+    }
+
+    public StepListener getStepListener() {
+        return listener;
+    }
 
     /**
-     * Executes each line in sequence.
-     * After every line, the current variable state is printed to stdout.
-     *
-     * @param lines  clean list of executable code lines from CodeParser
+     * Prepares the engine for a new execution session.
      */
-    public void execute(List<String> lines) {
-        if (lines == null || lines.isEmpty()) {
-            System.out.println("[ExecutionEngine] Nothing to execute.");
-            return;
+    public void prepare(List<String> lines) {
+        this.lines = lines;
+        this.pc = 0;
+        this.variableStore.clear();
+    }
+
+    /**
+     * Executes the next line in the sequence.
+     * Returns true if there are more lines to execute.
+     */
+    public boolean executeNextStep() {
+        if (lines == null || pc >= lines.size()) {
+            return false;
         }
 
-        System.out.println("[ExecutionEngine] Starting step-by-step execution of " + lines.size() + " line(s)...");
-        System.out.println("Press Enter to execute each step.");
-        printDivider();
+        String line = lines.get(pc).strip();
+        
+        // Handle empty lines or comments
+        if (line.isEmpty() || line.startsWith("//")) {
+            pc++;
+            return executeNextStep(); // Recursively skip until we find code or end
+        }
 
-        for (String line : lines) {
-            stepCount++;
-            System.out.println("Step " + stepCount + ":");
-            System.out.println("Executing: " + line);
+        if (listener != null) listener.onStepStart(pc, line);
 
-            try {
+        try {
+            if (line.startsWith("if")) {
+                handleIf(line);
+            } else if (line.equals("}")) {
+                // Closing brace of an if-block, just skip it
+                pc++;
+            } else {
                 Statement stmt = parseStatement(line);
                 stmt.execute(variableStore);
-            } catch (Exception e) {
-                System.out.println("  [ERROR] " + e.getMessage());
+                pc++;
             }
 
-            printVariableState();
-            
-            if (stepCount < lines.size()) {
-                System.out.print("\n(Press Enter to continue...) ");
-                inputScanner.nextLine();
+            if (listener != null) {
+                listener.onStepEnd(pc - 1, line, getVariableStateString());
             }
-            printDivider();
+
+        } catch (Exception e) {
+            if (listener != null) listener.onError(pc, line, e.getMessage());
+            pc++; // Advance even on error to avoid infinite loops
         }
 
-        System.out.println("[ExecutionEngine] Execution complete. "
-                + variableStore.size() + " variable(s) in memory.");
+        return pc < lines.size();
     }
 
-    // -----------------------------------------------------------------------
-    // Core parsing and factory logic
-    // -----------------------------------------------------------------------
+    private void handleIf(String line) {
+        // Basic pattern: if (condition) {
+        int startParen = line.indexOf('(');
+        int endParen = line.lastIndexOf(')');
+        int openBrace = line.indexOf('{');
 
-    /**
-     * Identifies the statement type and creates corresponding Statement object.
-     */
-    private Statement parseStatement(String line) {
-        // Strip trailing semicolon
-        if (line.endsWith(";")) {
-            line = line.substring(0, line.length() - 1).strip();
+        if (startParen == -1 || endParen == -1 || endParen < startParen) {
+            throw new RuntimeException("Malformed if statement: " + line);
         }
 
-        // 1. Declaration or Assignment (contains '=')
+        String conditionExpr = line.substring(startParen + 1, endParen).strip();
+        boolean condition = ExpressionEvaluator.evaluateBoolean(conditionExpr, variableStore);
+
+        if (condition) {
+            // Condition true: just advance to the next line (inside the block)
+            pc++;
+        } else {
+            // Condition false: skip until matching '}'
+            int braceCount = 0;
+            if (openBrace != -1) braceCount = 1;
+            
+            pc++; // Start looking from next line
+            while (pc < lines.size()) {
+                String l = lines.get(pc).strip();
+                if (l.contains("{")) braceCount++;
+                if (l.contains("}")) {
+                    braceCount--;
+                    if (braceCount <= 0) {
+                        pc++; // Move past the closing brace
+                        return;
+                    }
+                }
+                pc++;
+            }
+            throw new RuntimeException("Unclosed if-block starting at: " + line);
+        }
+    }
+
+    private Statement parseStatement(String line) {
+        if (line.endsWith(";")) {
+            line = line.substring(0, line.length() - 1).strip();
+        } else if (!line.endsWith("{") && !line.endsWith("}")) {
+             throw new RuntimeException("Syntax error: Missing semicolon at end of line.");
+        }
+
+        if (line.isEmpty()) throw new RuntimeException("Syntax error: Empty statement.");
+
         if (line.contains("=")) {
             int eqIdx = line.indexOf('=');
             String lhs = line.substring(0, eqIdx).strip();
@@ -112,14 +148,9 @@ public class ExecutionEngine {
                 return new AssignmentStatement(lhs, rhs);
             }
         }
-
-        // 2. Default to ExpressionStatement
         return new ExpressionStatement(line);
     }
 
-    /**
-     * Checks if the LHS contains a type keyword.
-     */
     private boolean isDeclaration(String lhs) {
         return lhs.matches("^(int|double|float|long|short|byte)\\s+.*");
     }
@@ -128,71 +159,20 @@ public class ExecutionEngine {
         return lhs.replaceFirst("^(int|double|float|long|short|byte)\\s+", "").strip();
     }
 
-    /**
-     * Rudimentary identifier validation (letters, digits, underscore; not starting with digit).
-     */
-    private boolean isValidIdentifier(String name) {
-        return name.matches("[a-zA-Z_][a-zA-Z0-9_]*");
+    public String getVariableStateString() {
+        return variableStore.toString();
     }
 
-    // -----------------------------------------------------------------------
-    // Display helpers
-    // -----------------------------------------------------------------------
-
-    private void printVariableState() {
-        if (variableStore.isEmpty()) {
-            System.out.println("Variables: {}");
-            return;
-        }
-
-        StringBuilder sb = new StringBuilder("Variables: {");
-        int count = 0;
-        for (Map.Entry<String, Integer> entry : variableStore.entrySet()) {
-            sb.append(entry.getKey()).append("=").append(entry.getValue());
-            if (++count < variableStore.size()) {
-                sb.append(", ");
-            }
-        }
-        sb.append("}");
-        System.out.println(sb.toString());
-    }
-
-    private void printDivider() {
-        System.out.println("  " + "-".repeat(45));
-    }
-
-    // -----------------------------------------------------------------------
-    // Getters / Setters  (Encapsulation)
-    // -----------------------------------------------------------------------
-
-    /** Returns an unmodifiable view of the variable store. */
     public Map<String, Integer> getVariableStore() {
         return Collections.unmodifiableMap(variableStore);
     }
 
-    /** Replaces the entire variable store (useful for testing/reset). */
-    public void setVariableStore(HashMap<String, Integer> variableStore) {
-        this.variableStore = variableStore;
+    public int getPC() {
+        return pc;
     }
 
-    /** Returns the number of steps executed so far. */
-    public int getStepCount() {
-        return stepCount;
-    }
-
-    /** Resets engine state (variable store + step counter). */
     public void reset() {
+        pc = 0;
         variableStore.clear();
-        stepCount = 0;
-    }
-
-    // -----------------------------------------------------------------------
-    // Inner exception class for clean error reporting
-    // -----------------------------------------------------------------------
-
-    static class ExecutionException extends RuntimeException {
-        ExecutionException(String message) {
-            super(message);
-        }
     }
 }

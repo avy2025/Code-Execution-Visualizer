@@ -1,72 +1,67 @@
-# Code Execution Visualizer
+# Code Execution Visualizer Pro
 
-A Java project that simulates and visualizes the step-by-step execution of Java-like code using Object-Oriented Programming principles.
+A powerful Java Swing-based desktop application designed to visualize step-by-step code execution. Perfect for students and developers to understand state changes and control flow in real-time.
 
-## Project Structure
+![Application Preview](assets/preview.png)
 
-```
-CodeExecutionVisualizer/
-└── src/
-    └── visualizer/
-        ├── Main.java            # Entry point – reads multi-line user input
-        ├── CodeParser.java      # Splits raw code string into trimmed lines
-        ├── ExecutionEngine.java # Processes each line and tracks variable state
-        └── Variable.java        # Encapsulated model for a variable (name + value)
-```
+## 🌟 Features
 
-## OOP Principles Used
+- **Interactive Code Editor**: Input Java-like code and watch it come to life.
+- **Manual Stepping**: Control the execution flow with "Next Step" and "Restart" controls.
+- **Line Highlighting**: Real-time visual feedback showing exactly which line is currently being executed.
+- **Variable Inspector**: A professional `JTable` view that tracks variable state changes instantly.
+- **Conditionals Support**: Basic `if` block handling with automatic line skipping for false conditions.
+- **Robust Error Handling**: Detects syntax errors, division by zero, undeclared variables, and more without crashing.
 
-- **Encapsulation** – All fields are `private` with public getters/setters
-- **Single Responsibility** – Each class has one focused role
-- **Package Structure** – All classes organized under `visualizer` package
+## 🏗️ Architecture & OOP Principles
 
-## Requirements
+The project is built with a modular architecture following key Object-Oriented Programming (OOP) principles:
 
-- Java JDK 17+ (e.g. [Eclipse Temurin](https://adoptium.net/))
+### 1. Abstraction
+We use a `Statement` interface to define the behavior of any line of code. This allows the `ExecutionEngine` to execute any command without knowing its internal logic.
 
-## How to Compile & Run
+### 2. Polymorphism
+Different statement types (Declaration, Assignment, Expression, and If) implement the `execute()` method. The engine treats them uniformly as `Statement` objects but they perform distinct operations.
 
-```bash
-# From the CodeExecutionVisualizer directory
+### 3. Encapsulation
+Internal state management is strictly controlled.
+- `ExecutionEngine` manages the `variableStore` (Map) and `Program Counter`.
+- `ExpressionEvaluator` encapsulates the arithmetic and boolean parsing logic.
+- UI components are separated from business logic.
 
-# Compile
-javac src/visualizer/*.java
+### 4. Separation of Concerns
+The application is divided into:
+- **Parser Layer**: Transforms raw strings into executable `Statement` objects.
+- **Execution Layer**: Manages data state and execution flow.
+- **Presentation Layer**: Handles Swing components, events, and visual updates.
 
-# Run
-java -cp src visualizer.Main
-```
+## 🚀 Getting Started
 
-## Usage
+### Prerequisites
+- Java Development Kit (JDK) 8 or higher.
 
-Enter multi-line Java-like code, then type `END` to finish input:
+### Installation & Run
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/avy2025/Code-Execution-Visualizer.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd Code-Execution-Visualizer
+   ```
+3. Compile the source code:
+   ```bash
+   javac -d bin src/visualizer/*.java
+   ```
+4. Run the application:
+   ```bash
+   java -cp bin visualizer.Main
+   ```
 
-```
-int x = 10
-String name = "Alice"
-double pi = 3.14
-END
-```
+## 🛠️ Tech Stack
+- **Language**: Java
+- **Framework**: Java Swing (Desktop GUI)
+- **Utilities**: `JTable`, `Highlighter`, `Timer`.
 
-### Sample Output
-
-```
-===========================================
-         Code Execution Visualizer
-===========================================
-Enter your multi-line Java-like code.
-(Type 'END' on a new line to finish):
--------------------------------------------
-
---- 1. Parsing Code ---
-Parsed 3 lines of code.
-
---- 2. Executing Code ---
-Starting execution...
->> Executing: int x = 10
-   [State Update] Stored: Variable{name='x', value=10}
->> Executing: String name = "Alice"
-   [State Update] Stored: Variable{name='name', value="Alice"}
->> Executing: double pi = 3.14
-   [State Update] Stored: Variable{name='pi', value=3.14}
-Execution finished. Final variables in memory: 3
-```
+---
+*Created by Antigravity - Advanced Agentic Coding Assistant*

@@ -3,7 +3,7 @@ package visualizer;
 import java.util.Map;
 
 /**
- * Utility class to evaluate arithmetic expressions.
+ * Utility class to evaluate arithmetic and boolean expressions.
  */
 public class ExpressionEvaluator {
 
@@ -20,6 +20,10 @@ public class ExpressionEvaluator {
                 String leftToken  = expr.substring(0, opIdx).strip();
                 String rightToken = expr.substring(opIdx + 1).strip();
 
+                if (leftToken.isEmpty() || rightToken.isEmpty()) {
+                    throw new RuntimeException("Malformed expression: missing operand near \"" + op + "\"");
+                }
+
                 int left  = resolveOperand(leftToken, memory);
                 int right = resolveOperand(rightToken, memory);
 
@@ -29,6 +33,36 @@ public class ExpressionEvaluator {
 
         // No operator found — must be a single operand
         return resolveOperand(expr, memory);
+    }
+
+    /**
+     * Evaluates a boolean comparison expression (e.g., "a > 10").
+     */
+    public static boolean evaluateBoolean(String expr, Map<String, Integer> memory) {
+        expr = expr.strip();
+        
+        String[] ops = {"==", "!=", ">=", "<=", ">", "<"};
+        for (String op : ops) {
+            int opIdx = expr.indexOf(op);
+            if (opIdx != -1) {
+                String leftToken = expr.substring(0, opIdx).strip();
+                String rightToken = expr.substring(opIdx + op.length()).strip();
+                
+                int left = evaluate(leftToken, memory);
+                int right = evaluate(rightToken, memory);
+                
+                switch (op) {
+                    case "==": return left == right;
+                    case "!=": return left != right;
+                    case ">=": return left >= right;
+                    case "<=": return left <= right;
+                    case ">":  return left > right;
+                    case "<":  return left < right;
+                }
+            }
+        }
+        
+        throw new RuntimeException("Unsupported boolean expression: \"" + expr + "\"");
     }
 
     private static int findOperatorIndex(String expr, char op) {

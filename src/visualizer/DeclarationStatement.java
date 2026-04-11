@@ -16,6 +16,10 @@ public class DeclarationStatement implements Statement {
 
     @Override
     public void execute(HashMap<String, Integer> memory) {
+        if (memory.containsKey(varName)) {
+            throw new RuntimeException("Variable already declared: \"" + varName + "\". Use assignment instead.");
+        }
+        
         // If there's an assignment part, evaluate it
         int value = 0; // Default or null equivalent in this simple engine
         if (expression != null && !expression.isBlank()) {
