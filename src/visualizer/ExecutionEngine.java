@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 /**
  * ExecutionEngine simulates step-by-step execution of parsed Java-like code lines.
@@ -27,6 +28,9 @@ public class ExecutionEngine {
     // Step counter for display
     private int stepCount;
 
+    // Scanner for step-by-step pause
+    private final Scanner inputScanner;
+
     // -----------------------------------------------------------------------
     // Constructor
     // -----------------------------------------------------------------------
@@ -34,6 +38,7 @@ public class ExecutionEngine {
     public ExecutionEngine() {
         this.variableStore = new LinkedHashMap<>();   // LinkedHashMap keeps insertion order for printing
         this.stepCount = 0;
+        this.inputScanner = new Scanner(System.in);
     }
 
     // -----------------------------------------------------------------------
@@ -52,20 +57,28 @@ public class ExecutionEngine {
             return;
         }
 
-        System.out.println("[ExecutionEngine] Starting execution of " + lines.size() + " line(s)...");
+        System.out.println("[ExecutionEngine] Starting step-by-step execution of " + lines.size() + " line(s)...");
+        System.out.println("Press Enter to execute each step.");
         printDivider();
 
         for (String line : lines) {
             stepCount++;
-            System.out.println("Step " + stepCount + " | Line : " + line);
+            System.out.println("Step " + stepCount + ":");
+            System.out.println("Executing: " + line);
 
             try {
-                processLine(line);
-            } catch (ExecutionException e) {
+                Statement stmt = parseStatement(line);
+                stmt.execute(variableStore);
+            } catch (Exception e) {
                 System.out.println("  [ERROR] " + e.getMessage());
             }
 
             printVariableState();
+            
+            if (stepCount < lines.size()) {
+                System.out.print("\n(Press Enter to continue...) ");
+                inputScanner.nextLine();
+            }
             printDivider();
         }
 
@@ -74,141 +87,45 @@ public class ExecutionEngine {
     }
 
     // -----------------------------------------------------------------------
-    // Core parsing logic
+    // Core parsing and factory logic
     // -----------------------------------------------------------------------
 
     /**
-     * Determines the type of statement and dispatches to the right handler.
-     *
-     * Grammar handled:
-     *   [type] varName = expression ;
-     *   varName = expression ;
+     * Identifies the statement type and creates corresponding Statement object.
      */
-    private void processLine(String line) {
-        // Strip trailing semicolon if present
+    private Statement parseStatement(String line) {
+        // Strip trailing semicolon
         if (line.endsWith(";")) {
             line = line.substring(0, line.length() - 1).strip();
         }
 
-        // Must contain '=' to be a valid assignment
-        if (!line.contains("=")) {
-            throw new ExecutionException("Unrecognised statement (no '=' found): " + line);
+        // 1. Declaration or Assignment (contains '=')
+        if (line.contains("=")) {
+            int eqIdx = line.indexOf('=');
+            String lhs = line.substring(0, eqIdx).strip();
+            String rhs = line.substring(eqIdx + 1).strip();
+
+            if (isDeclaration(lhs)) {
+                String varName = stripTypeKeyword(lhs);
+                return new DeclarationStatement(varName, rhs);
+            } else {
+                return new AssignmentStatement(lhs, rhs);
+            }
         }
 
-        // Split on first '=' only
-        int eqIdx = line.indexOf('=');
-        String lhs = line.substring(0, eqIdx).strip();   // e.g. "int a"  or  "a"
-        String rhs = line.substring(eqIdx + 1).strip();  // e.g. "5"  or  "a + b"
-
-        // Strip optional type keyword from LHS
-        String varName = stripTypeKeyword(lhs);
-
-        // Validate variable name
-        if (!isValidIdentifier(varName)) {
-            throw new ExecutionException("Invalid variable name: \"" + varName + "\"");
-        }
-
-        // Evaluate RHS expression
-        int result = evaluateExpression(rhs);
-
-        // Store in map
-        variableStore.put(varName, result);
-        System.out.println("  → Assigned: " + varName + " = " + result);
+        // 2. Default to ExpressionStatement
+        return new ExpressionStatement(line);
     }
 
     /**
-     * Strips type keywords (int, double, float, long, short, byte) from LHS.
+     * Checks if the LHS contains a type keyword.
      */
+    private boolean isDeclaration(String lhs) {
+        return lhs.matches("^(int|double|float|long|short|byte)\\s+.*");
+    }
+
     private String stripTypeKeyword(String lhs) {
         return lhs.replaceFirst("^(int|double|float|long|short|byte)\\s+", "").strip();
-    }
-
-    /**
-     * Evaluates a simple arithmetic expression.
-     * Supports: literal integers, variable names, and one binary operator.
-     *
-     * Examples:
-     *   "5"       → 5
-     *   "a"       → value of a
-     *   "a + b"   → value of a + value of b
-     *   "10 - 3"  → 7
-     *   "a * 2"   → value of a * 2
-     *   "b / 2"   → value of b / 2  (integer division)
-     */
-    private int evaluateExpression(String expr) {
-        expr = expr.strip();
-
-        // Try each operator (order matters — process left to right)
-        for (char op : new char[]{'+', '-', '*', '/'}) {
-            int opIdx = findOperatorIndex(expr, op);
-            if (opIdx != -1) {
-                String leftToken  = expr.substring(0, opIdx).strip();
-                String rightToken = expr.substring(opIdx + 1).strip();
-
-                int left  = resolveOperand(leftToken);
-                int right = resolveOperand(rightToken);
-
-                return applyOperator(op, left, right, expr);
-            }
-        }
-
-        // No operator found — must be a single operand
-        return resolveOperand(expr);
-    }
-
-    /**
-     * Finds the index of operator character in the expression string,
-     * skipping occurrences inside negative number literals.
-     * Returns -1 if not found.
-     */
-    private int findOperatorIndex(String expr, char op) {
-        // Scan from right for + and - to handle unary minus on left operand naturally
-        // Use simple left-to-right scan; skip position 0 for '-' to avoid treating
-        // a leading minus as binary subtraction.
-        int start = (op == '-' || op == '+') ? 1 : 0;
-        for (int i = start; i < expr.length(); i++) {
-            if (expr.charAt(i) == op) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * Resolves a token to its integer value.
-     * Token is either a numeric literal or a variable name.
-     */
-    private int resolveOperand(String token) {
-        token = token.strip();
-        // Try parsing as integer literal first
-        try {
-            return Integer.parseInt(token);
-        } catch (NumberFormatException ignored) {
-            // Not a literal — look up as variable
-        }
-
-        if (!variableStore.containsKey(token)) {
-            throw new ExecutionException("Undefined variable: \"" + token + "\"");
-        }
-        return variableStore.get(token);
-    }
-
-    /**
-     * Applies a binary arithmetic operator.
-     */
-    private int applyOperator(char op, int left, int right, String exprContext) {
-        switch (op) {
-            case '+': return left + right;
-            case '-': return left - right;
-            case '*': return left * right;
-            case '/':
-                if (right == 0) {
-                    throw new ExecutionException("Division by zero in: \"" + exprContext + "\"");
-                }
-                return left / right;
-            default:
-                throw new ExecutionException("Unknown operator: " + op);
-        }
     }
 
     /**
@@ -224,12 +141,20 @@ public class ExecutionEngine {
 
     private void printVariableState() {
         if (variableStore.isEmpty()) {
-            System.out.println("  Variables: (none)");
+            System.out.println("Variables: {}");
             return;
         }
-        System.out.println("  Variables after this step:");
-        variableStore.forEach((name, value) ->
-                System.out.printf("    %-12s = %d%n", name, value));
+
+        StringBuilder sb = new StringBuilder("Variables: {");
+        int count = 0;
+        for (Map.Entry<String, Integer> entry : variableStore.entrySet()) {
+            sb.append(entry.getKey()).append("=").append(entry.getValue());
+            if (++count < variableStore.size()) {
+                sb.append(", ");
+            }
+        }
+        sb.append("}");
+        System.out.println(sb.toString());
     }
 
     private void printDivider() {
