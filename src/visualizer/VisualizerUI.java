@@ -20,6 +20,8 @@ public class VisualizerUI extends JFrame {
     private DefaultTableModel tableModel;
     private JButton startButton;
     private JButton nextStepButton;
+    private FlowchartPanel flowchartPanel;
+    private FlowchartGenerator flowchartGenerator;
     private ExecutionEngine engine;
     private CodeParser parser;
     private List<String> linesToExecute;
@@ -74,8 +76,12 @@ public class VisualizerUI extends JFrame {
         inputPanel.add(inputScroll, BorderLayout.CENTER);
 
         // --- Right: Dashboard Section ---
+        JTabbedPane rightTabbedPane = new JTabbedPane();
+        rightTabbedPane.setFont(new Font("Inter", Font.BOLD, 13));
+
         JPanel dashboardPanel = new JPanel(new GridLayout(2, 1, 0, 10));
         dashboardPanel.setOpaque(false);
+        dashboardPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         // Variable Table
         JPanel tablePanel = new JPanel(new BorderLayout(5, 5));
@@ -115,8 +121,17 @@ public class VisualizerUI extends JFrame {
         dashboardPanel.add(tablePanel);
         dashboardPanel.add(logPanel);
 
+        // Flowchart Panel
+        flowchartPanel = new FlowchartPanel();
+        flowchartGenerator = new FlowchartGenerator();
+        JScrollPane flowchartScroll = new JScrollPane(flowchartPanel);
+        flowchartScroll.setBorder(null);
+
+        rightTabbedPane.addTab("Execution Dashboard", dashboardPanel);
+        rightTabbedPane.addTab("Control Flow Diagram", flowchartScroll);
+
         mainSplit.setLeftComponent(inputPanel);
-        mainSplit.setRightComponent(dashboardPanel);
+        mainSplit.setRightComponent(rightTabbedPane);
         mainPanel.add(mainSplit, BorderLayout.CENTER);
 
         // --- Bottom: Controls ---
@@ -186,6 +201,15 @@ public class VisualizerUI extends JFrame {
 
         logArea.setText("Parser: " + linesToExecute.size() + " lines identified.\n");
         tableModel.setRowCount(0);
+        
+        // Update Flowchart
+        try {
+            FlowchartNode root = flowchartGenerator.generate(linesToExecute);
+            flowchartPanel.setFlowchart(root);
+        } catch (Exception ex) {
+            logArea.append("[Flowchart Error] " + ex.getMessage() + "\n");
+        }
+
         engine.prepare(linesToExecute);
         
         nextStepButton.setEnabled(true);
