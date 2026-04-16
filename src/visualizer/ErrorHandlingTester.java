@@ -1,7 +1,5 @@
 package visualizer;
 
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Utility to verify that the ExecutionEngine handles errors gracefully.
@@ -24,7 +22,8 @@ public class ErrorHandlingTester {
 
         // Test 4: Variable Re-declaration
         engine.reset();
-        engine.executeSingleLine("int a = 5;");
+        engine.prepare(java.util.Arrays.asList("int a = 5;"));
+        engine.executeNextStep();
         testError(engine, "int a = 10;", "already declared");
 
         System.out.println("\n=== All Tests Completed ===");
@@ -33,8 +32,8 @@ public class ErrorHandlingTester {
     private static void testError(ExecutionEngine engine, String testLine, String expectedErrorSub) {
         System.out.print("Testing: [" + testLine + "] -> ");
         
-        // We capture errors via a temporary listener or just check standard output
-        // For testing, let's just run it. The engine prints errors if no listener is set.
-        engine.executeSingleLine(testLine);
+        java.util.List<String> script = java.util.Arrays.asList(testLine);
+        engine.prepare(script);
+        engine.executeNextStep();
     }
 }
