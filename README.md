@@ -11,6 +11,7 @@ A powerful Java Swing-based desktop application designed to visualize step-by-st
 - **Line Highlighting**: Real-time visual feedback showing exactly which line is currently being executed.
 - **Variable Inspector**: A professional `JTable` view that tracks variable state changes instantly.
 - **Conditionals Support**: Basic `if` block handling with automatic line skipping for false conditions.
+- **Auto-Flowchart Generation**: Instantly converts source code into a visual control flow diagram with branching logic.
 - **Robust Error Handling**: Detects syntax errors, division by zero, undeclared variables, and more without crashing.
 
 ## 🏗️ Architecture & OOP Principles
@@ -61,7 +62,8 @@ The application is divided into:
 ## 🛠️ Tech Stack
 - **Language**: Java
 - **Framework**: Java Swing (Desktop GUI)
-- **Utilities**: `JTable`, `Highlighter`, `Timer`.
+- **Graphics**: `Graphics2D` (for custom flowchart rendering)
+- **Utilities**: `JTable`, `Highlighter`, `JTabbedPane`.
 
 ---
 *Created by Antigravity - Advanced Agentic Coding Assistant*
