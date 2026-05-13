@@ -22,7 +22,7 @@ public class ErrorHandlingTester {
 
         // Test 4: Variable Re-declaration
         engine.reset();
-        engine.prepare(java.util.Arrays.asList("int a = 5;"));
+        engine.prepare(java.util.Arrays.asList("int a = 5;"), Language.JAVA);
         engine.executeNextStep();
         testError(engine, "int a = 10;", "already declared");
 
@@ -33,7 +33,6 @@ public class ErrorHandlingTester {
         System.out.print("Testing: [" + testLine + "] -> ");
         
         java.util.List<String> script = java.util.Arrays.asList(testLine);
-        engine.prepare(script);
-        engine.executeNextStep();
+        engine.prepare(script, Language.JAVA);
     }
 }
