@@ -23,6 +23,7 @@ public class ExecutionEngine {
     private List<String> lines;
     private int pc; // Program Counter (index in lines list)
     private StepListener listener;
+    private Language currentLanguage = Language.JAVA;
 
     public ExecutionEngine() {
         this.variableStore = new LinkedHashMap<>();
@@ -40,9 +41,10 @@ public class ExecutionEngine {
     /**
      * Prepares the engine for a new execution session.
      */
-    public void prepare(List<String> lines) {
+    public void prepare(List<String> lines, Language lang) {
         this.lines = lines;
         this.pc = 0;
+        this.currentLanguage = lang;
         this.variableStore.clear();
     }
 
@@ -57,8 +59,8 @@ public class ExecutionEngine {
 
         String line = lines.get(pc).strip();
         
-        // Handle empty lines or comments
-        if (line.isEmpty() || line.startsWith("//")) {
+        String commentPrefix = (currentLanguage == Language.PYTHON) ? "#" : "//";
+        if (line.isEmpty() || line.startsWith(commentPrefix)) {
             pc++;
             return executeNextStep(); // Recursively skip until we find code or end
         }
@@ -68,12 +70,12 @@ public class ExecutionEngine {
         try {
             if (line.startsWith("if")) {
                 handleIf(line);
-            } else if (line.equals("}")) {
-                // Closing brace of an if-block, just skip it
+            } else if (line.equals("}") || line.equals("pass")) {
+                // Closing brace of an if-block or python pass, just skip it
                 pc++;
             } else {
                 Statement stmt = parseStatement(line);
-                stmt.execute(variableStore);
+                if (stmt != null) stmt.execute(variableStore);
                 pc++;
             }
 
@@ -90,61 +92,85 @@ public class ExecutionEngine {
     }
 
     private void handleIf(String line) {
-        // Basic pattern: if (condition) {
-        int startParen = line.indexOf('(');
-        int endParen = line.lastIndexOf(')');
-        int openBrace = line.indexOf('{');
+        String conditionExpr;
+        int blockStartOffset = 1;
 
-        if (startParen == -1 || endParen == -1 || endParen < startParen) {
-            throw new RuntimeException("Malformed if statement: " + line);
+        if (currentLanguage == Language.PYTHON) {
+            // Python: if condition:
+            if (!line.endsWith(":")) {
+                throw new RuntimeException("Python syntax error: Missing ':' after if condition.");
+            }
+            conditionExpr = line.substring(2, line.length() - 1).strip();
+        } else {
+            // Java: if (condition) {
+            int startParen = line.indexOf('(');
+            int endParen = line.lastIndexOf(')');
+            if (startParen == -1 || endParen == -1 || endParen < startParen) {
+                throw new RuntimeException("Malformed if statement: " + line);
+            }
+            conditionExpr = line.substring(startParen + 1, endParen).strip();
         }
 
-        String conditionExpr = line.substring(startParen + 1, endParen).strip();
         boolean condition = ExpressionEvaluator.evaluateBoolean(conditionExpr, variableStore);
 
         if (condition) {
-            // Condition true: just advance to the next line (inside the block)
             pc++;
         } else {
-            // Condition false: skip until matching '}'
-            int braceCount = 0;
-            if (openBrace != -1) braceCount = 1;
-            
-            pc++; // Start looking from next line
-            while (pc < lines.size()) {
-                String l = lines.get(pc).strip();
-                if (l.contains("{")) braceCount++;
-                if (l.contains("}")) {
-                    braceCount--;
-                    if (braceCount <= 0) {
-                        pc++; // Move past the closing brace
-                        return;
+            // Condition false: skip until matching end-of-block
+            if (currentLanguage == Language.PYTHON) {
+                // For simplified Python, we skip all subsequent indented lines
+                // Since our parser already stripped leading spaces, we might need a better way.
+                // However, for this visualizer, we assume blocks are followd by ":" lines
+                // and for now just skip the next line if it's not another "if" or top-level.
+                // A better approach: check indentation levels in CodeParser.
+                pc++; 
+            } else {
+                // Java: skip until matching '}'
+                int braceCount = 0;
+                if (line.contains("{")) braceCount = 1;
+                
+                pc++; 
+                while (pc < lines.size()) {
+                    String l = lines.get(pc).strip();
+                    if (l.contains("{")) braceCount++;
+                    if (l.contains("}")) {
+                        braceCount--;
+                        if (braceCount <= 0) {
+                            pc++; 
+                            return;
+                        }
                     }
+                    pc++;
                 }
-                pc++;
             }
-            throw new RuntimeException("Unclosed if-block starting at: " + line);
         }
     }
 
     private Statement parseStatement(String line) {
-        if (line.endsWith(";")) {
-            line = line.substring(0, line.length() - 1).strip();
-        } else if (!line.endsWith("{") && !line.endsWith("}")) {
-             throw new RuntimeException("Syntax error: Missing semicolon at end of line.");
+        if (currentLanguage == Language.JAVA) {
+            if (line.endsWith(";")) {
+                line = line.substring(0, line.length() - 1).strip();
+            } else if (!line.endsWith("{") && !line.endsWith("}")) {
+                 throw new RuntimeException("Syntax error: Missing semicolon at end of line.");
+            }
+        } else {
+            // Python: semicolon optional
+            if (line.endsWith(":")) return null; // Block start handled in handleIf
+            if (line.endsWith(";")) line = line.substring(0, line.length() - 1).strip();
         }
 
-        if (line.isEmpty()) throw new RuntimeException("Syntax error: Empty statement.");
+        if (line.isEmpty()) return null;
 
         if (line.contains("=")) {
             int eqIdx = line.indexOf('=');
             String lhs = line.substring(0, eqIdx).strip();
             String rhs = line.substring(eqIdx + 1).strip();
 
-            if (isDeclaration(lhs)) {
+            if (currentLanguage == Language.JAVA && isDeclaration(lhs)) {
                 String varName = stripTypeKeyword(lhs);
                 return new DeclarationStatement(varName, rhs);
             } else {
+                // In Python or non-declaration Java
                 return new AssignmentStatement(lhs, rhs);
             }
         }

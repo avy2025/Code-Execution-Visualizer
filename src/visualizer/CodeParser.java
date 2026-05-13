@@ -31,14 +31,15 @@ public class CodeParser {
     /**
      * Parses raw multi-line code into a clean list of executable lines.
      *
-     * @param code  raw source code string (may contain blank lines, comments, extra spaces)
-     * @return      immutable list of cleaned, non-empty lines ready for execution
+     * @param code  raw source code string
+     * @param lang  target language (JAVA or PYTHON)
+     * @return      immutable list of cleaned lines
      */
-    public List<String> parseCode(String code) {
+    public List<String> parseCode(String code, Language lang) {
         lastParsedLines = new ArrayList<>();
 
         if (code == null || code.isBlank()) {
-            System.out.println("[CodeParser] No input provided. Returning empty list.");
+            System.out.println("[CodeParser] No input provided.");
             return Collections.unmodifiableList(lastParsedLines);
         }
 
@@ -49,16 +50,28 @@ public class CodeParser {
         for (String rawLine : rawLines) {
             lineNumber++;
 
-            // Step 2 – Strip leading/trailing whitespace
             String cleaned = rawLine.strip();
 
-            // Step 3 – Remove single-line comments (everything after //)
-            int commentIndex = cleaned.indexOf("//");
-            if (commentIndex != -1) {
-                cleaned = cleaned.substring(0, commentIndex).strip();
+            // Step 3 – Remove comments based on language
+            if (lang == Language.PYTHON) {
+                int commentIndex = cleaned.indexOf("#");
+                if (commentIndex != -1) {
+                    cleaned = cleaned.substring(0, commentIndex).strip();
+                }
+            } else {
+                int commentIndex = cleaned.indexOf("//");
+                if (commentIndex != -1) {
+                    cleaned = cleaned.substring(0, commentIndex).strip();
+                }
+                
+                // Java Boilerplate Stripping
+                if (isBoilerplate(cleaned)) {
+                    System.out.println("[CodeParser] Skipping Java boilerplate: " + cleaned);
+                    continue;
+                }
             }
 
-            // Step 4 – Collapse multiple internal spaces/tabs into one space
+            // Step 4 – Collapse spaces
             cleaned = cleaned.replaceAll("[ \\t]+", " ");
 
             // Step 5 – Skip if blank after all transformations
@@ -108,9 +121,17 @@ public class CodeParser {
     // Legacy method – delegates to parseCode() for backward compatibility
     // -----------------------------------------------------------------------
 
-    /** @deprecated Use {@link #parseCode(String)} instead. */
+    private boolean isBoilerplate(String line) {
+        return line.matches(".*(public|private|protected)?\\s*(class|interface|enum)\\s+\\w+.*") ||
+               line.matches(".*public\\s+static\\s+void\\s+main\\s*\\(.*") ||
+               line.matches("^package\\s+.*;$") ||
+               line.matches("^import\\s+.*;$") ||
+               line.equals("{") || line.equals("}"); 
+    }
+
+    /** @deprecated Use {@link #parseCode(String, Language)} instead. */
     @Deprecated
     public List<String> parse(String code) {
-        return parseCode(code);
+        return parseCode(code, Language.JAVA);
     }
 }
