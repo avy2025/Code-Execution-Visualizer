@@ -26,6 +26,7 @@ public class VisualizerUI extends JFrame {
     private CodeParser parser;
     private List<String> linesToExecute;
     private Object currentHighlight;
+    private JComboBox<Language> languageSelector;
 
     public VisualizerUI() {
         setTitle("Code Execution Visualizer Pro");
@@ -142,6 +143,21 @@ public class VisualizerUI extends JFrame {
         nextStepButton = createStyledButton("Next Step →", new Color(46, 204, 113));
         nextStepButton.setEnabled(false);
 
+        languageSelector = new JComboBox<>(Language.values());
+        languageSelector.setFont(new Font("Inter", Font.BOLD, 14));
+        languageSelector.setBackground(Color.WHITE);
+        
+        languageSelector.addActionListener(e -> {
+            Language selected = (Language) languageSelector.getSelectedItem();
+            if (selected == Language.PYTHON) {
+                codeInput.setText("# Python code demo\nx = 10\ny = 20\nif x < y:\n    x = x + 100\nresult = x * y\n");
+            } else {
+                codeInput.setText("// Java code demo\nint x = 5;\nint y = 10;\nif (x < y) {\n    x = x + 100;\n}\nint result = x * y;\n");
+            }
+        });
+
+        controlPanel.add(new JLabel("Language:"));
+        controlPanel.add(languageSelector);
         controlPanel.add(startButton);
         controlPanel.add(nextStepButton);
         mainPanel.add(controlPanel, BorderLayout.SOUTH);
@@ -192,7 +208,8 @@ public class VisualizerUI extends JFrame {
 
     private void resetAndStart() {
         String code = codeInput.getText();
-        linesToExecute = parser.parseCode(code);
+        Language lang = (Language) languageSelector.getSelectedItem();
+        linesToExecute = parser.parseCode(code, lang);
         
         if (linesToExecute.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Empty code area.", "Info", JOptionPane.WARNING_MESSAGE);
@@ -210,7 +227,7 @@ public class VisualizerUI extends JFrame {
             logArea.append("[Flowchart Error] " + ex.getMessage() + "\n");
         }
 
-        engine.prepare(linesToExecute);
+        engine.prepare(linesToExecute, lang);
         
         nextStepButton.setEnabled(true);
         startButton.setText("Restart");
