@@ -12,6 +12,7 @@ A powerful Java Swing-based desktop application designed to visualize step-by-st
 - **Variable Inspector**: A professional `JTable` view that tracks variable state changes instantly.
 - **Conditionals Support**: Basic `if` block handling with automatic line skipping for false conditions.
 - **Auto-Flowchart Generation**: Instantly converts source code into a visual control flow diagram with branching logic.
+- **Learn & Memorize Hub**: A dedicated section with pro tips on writing clean code and fun mental models to master your logic.
 - **Robust Error Handling**: Detects syntax errors, division by zero, undeclared variables, and more without crashing.
 
 ## 🏗️ Architecture & OOP Principles
