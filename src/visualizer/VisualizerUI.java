@@ -130,6 +130,7 @@ public class VisualizerUI extends JFrame {
 
         rightTabbedPane.addTab("Execution Dashboard", dashboardPanel);
         rightTabbedPane.addTab("Control Flow Diagram", flowchartScroll);
+        rightTabbedPane.addTab("Learn & Memorize", new LearningCenter());
 
         mainSplit.setLeftComponent(inputPanel);
         mainSplit.setRightComponent(rightTabbedPane);
