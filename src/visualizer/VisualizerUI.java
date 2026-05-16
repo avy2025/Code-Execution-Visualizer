@@ -20,6 +20,9 @@ public class VisualizerUI extends JFrame {
     private DefaultTableModel tableModel;
     private JButton startButton;
     private JButton nextStepButton;
+    private JButton backStepButton;
+    private JButton autoPlayButton;
+    private Timer autoPlayTimer;
     private FlowchartPanel flowchartPanel;
     private FlowchartGenerator flowchartGenerator;
     private ExecutionEngine engine;
@@ -28,10 +31,17 @@ public class VisualizerUI extends JFrame {
     private Object currentHighlight;
     private JComboBox<Language> languageSelector;
 
+    // Dark Theme Colors
+    private static final Color COLOR_BG = new Color(30, 30, 30);
+    private static final Color COLOR_PANEL = new Color(37, 37, 38);
+    private static final Color COLOR_TEXT = new Color(212, 212, 212);
+    private static final Color COLOR_ACCENT = new Color(174, 11, 5); // Imperial Red
+    private static final Color COLOR_BORDER = new Color(63, 63, 70);
+
     public VisualizerUI() {
         setTitle("Code Execution Visualizer Pro");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1100, 750);
+        setSize(1200, 800);
         setLocationRelativeTo(null);
         
         engine = new ExecutionEngine();
@@ -43,35 +53,41 @@ public class VisualizerUI extends JFrame {
 
     private void setupUI() {
         // Main Layout
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        mainPanel.setBackground(new Color(240, 242, 245));
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        mainPanel.setBackground(COLOR_BG);
 
         // Header
-        JLabel header = new JLabel("Code Execution Visualizer", SwingConstants.CENTER);
-        header.setFont(new Font("Inter", Font.BOLD, 28));
-        header.setForeground(new Color(33, 37, 41));
+        JLabel header = new JLabel("Code Execution Visualizer Pro", SwingConstants.LEFT);
+        header.setFont(new Font("Inter", Font.BOLD, 24));
+        header.setForeground(Color.WHITE);
+        header.setBorder(new EmptyBorder(0, 5, 10, 0));
         mainPanel.add(header, BorderLayout.NORTH);
 
         // Center split: Input and State Dashboard
         JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        mainSplit.setDividerLocation(500);
+        mainSplit.setDividerLocation(550);
         mainSplit.setBorder(null);
+        mainSplit.setDividerSize(3);
+        mainSplit.setBackground(COLOR_BG);
 
         // --- Left: Code Input Section ---
         JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
         inputPanel.setOpaque(false);
-        JLabel inputLabel = new JLabel("Source Code:");
-        inputLabel.setFont(new Font("Inter", Font.BOLD, 14));
+        JLabel inputLabel = new JLabel(" EDITOR");
+        inputLabel.setFont(new Font("Inter", Font.BOLD, 12));
+        inputLabel.setForeground(new Color(150, 150, 150));
         
         codeInput = new JTextArea();
         codeInput.setFont(new Font("Fira Code", Font.PLAIN, 15));
+        codeInput.setCaretColor(Color.WHITE);
         codeInput.setMargin(new Insets(10, 10, 10, 10));
-        codeInput.setBackground(Color.WHITE);
+        codeInput.setBackground(new Color(25, 25, 25));
+        codeInput.setForeground(new Color(220, 220, 220));
         codeInput.setText("// Try if conditions!\nint x = 5;\nint y = 10;\nif (x < y) {\n    x = x + 100;\n}\nint result = x * y;\n");
         
         JScrollPane inputScroll = new JScrollPane(codeInput);
-        inputScroll.setBorder(BorderFactory.createLineBorder(new Color(218, 220, 224)));
+        inputScroll.setBorder(BorderFactory.createLineBorder(COLOR_BORDER));
         
         inputPanel.add(inputLabel, BorderLayout.NORTH);
         inputPanel.add(inputScroll, BorderLayout.CENTER);
@@ -79,43 +95,57 @@ public class VisualizerUI extends JFrame {
         // --- Right: Dashboard Section ---
         JTabbedPane rightTabbedPane = new JTabbedPane();
         rightTabbedPane.setFont(new Font("Inter", Font.BOLD, 13));
+        rightTabbedPane.setBackground(COLOR_PANEL);
+        rightTabbedPane.setForeground(COLOR_TEXT);
 
         JPanel dashboardPanel = new JPanel(new GridLayout(2, 1, 0, 10));
-        dashboardPanel.setOpaque(false);
-        dashboardPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        dashboardPanel.setBackground(COLOR_BG);
+        dashboardPanel.setBorder(new EmptyBorder(10, 0, 0, 0));
 
         // Variable Table
         JPanel tablePanel = new JPanel(new BorderLayout(5, 5));
-        tablePanel.setOpaque(false);
-        JLabel tableLabel = new JLabel("Variable Inspector:");
-        tableLabel.setFont(new Font("Inter", Font.BOLD, 14));
+        tablePanel.setBackground(COLOR_PANEL);
+        tablePanel.setBorder(BorderFactory.createLineBorder(COLOR_BORDER));
+        JLabel tableLabel = new JLabel("  VARIABLE INSPECTOR");
+        tableLabel.setFont(new Font("Inter", Font.BOLD, 11));
+        tableLabel.setForeground(new Color(150, 150, 150));
+        tableLabel.setPreferredSize(new Dimension(0, 25));
         
         String[] columnNames = {"Variable", "Value"};
         tableModel = new DefaultTableModel(columnNames, 0);
         variableTable = new JTable(tableModel);
+        variableTable.setBackground(COLOR_PANEL);
+        variableTable.setForeground(COLOR_TEXT);
+        variableTable.setGridColor(COLOR_BORDER);
         variableTable.setFont(new Font("Inter", Font.PLAIN, 14));
-        variableTable.setRowHeight(25);
-        variableTable.getTableHeader().setFont(new Font("Inter", Font.BOLD, 14));
+        variableTable.setRowHeight(30);
+        variableTable.getTableHeader().setBackground(new Color(45, 45, 48));
+        variableTable.getTableHeader().setForeground(Color.WHITE);
+        variableTable.getTableHeader().setFont(new Font("Inter", Font.BOLD, 12));
         
         JScrollPane tableScroll = new JScrollPane(variableTable);
-        tableScroll.setBorder(BorderFactory.createLineBorder(new Color(218, 220, 224)));
+        tableScroll.getViewport().setBackground(COLOR_PANEL);
+        tableScroll.setBorder(null);
         tablePanel.add(tableLabel, BorderLayout.NORTH);
         tablePanel.add(tableScroll, BorderLayout.CENTER);
 
         // Execution Log
         JPanel logPanel = new JPanel(new BorderLayout(5, 5));
-        logPanel.setOpaque(false);
-        JLabel logLabel = new JLabel("Execution Logs:");
-        logLabel.setFont(new Font("Inter", Font.BOLD, 14));
+        logPanel.setBackground(COLOR_PANEL);
+        logPanel.setBorder(BorderFactory.createLineBorder(COLOR_BORDER));
+        JLabel logLabel = new JLabel("  EXECUTION LOG");
+        logLabel.setFont(new Font("Inter", Font.BOLD, 11));
+        logLabel.setForeground(new Color(150, 150, 150));
+        logLabel.setPreferredSize(new Dimension(0, 25));
         
         logArea = new JTextArea();
         logArea.setEditable(false);
         logArea.setFont(new Font("Consolas", Font.PLAIN, 13));
-        logArea.setBackground(new Color(33, 37, 41));
-        logArea.setForeground(new Color(248, 249, 250));
+        logArea.setBackground(new Color(25, 25, 25));
+        logArea.setForeground(new Color(170, 170, 170));
         
         JScrollPane logScroll = new JScrollPane(logArea);
-        logScroll.setBorder(BorderFactory.createEmptyBorder());
+        logScroll.setBorder(null);
         logPanel.add(logLabel, BorderLayout.NORTH);
         logPanel.add(logScroll, BorderLayout.CENTER);
 
@@ -124,30 +154,80 @@ public class VisualizerUI extends JFrame {
 
         // Flowchart Panel
         flowchartPanel = new FlowchartPanel();
+        flowchartPanel.setBackground(new Color(25, 25, 25));
         flowchartGenerator = new FlowchartGenerator();
         JScrollPane flowchartScroll = new JScrollPane(flowchartPanel);
         flowchartScroll.setBorder(null);
 
-        rightTabbedPane.addTab("Execution Dashboard", dashboardPanel);
-        rightTabbedPane.addTab("Control Flow Diagram", flowchartScroll);
-        rightTabbedPane.addTab("Learn & Memorize", new LearningCenter());
+        rightTabbedPane.addTab("Dashboard", dashboardPanel);
+        rightTabbedPane.addTab("Flowchart", flowchartScroll);
+        rightTabbedPane.addTab("Learning Center", new LearningCenter());
 
         mainSplit.setLeftComponent(inputPanel);
         mainSplit.setRightComponent(rightTabbedPane);
         mainPanel.add(mainSplit, BorderLayout.CENTER);
 
         // --- Bottom: Controls ---
-        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         controlPanel.setOpaque(false);
 
-        startButton = createStyledButton("Start / Reset", new Color(52, 152, 219));
-        nextStepButton = createStyledButton("Next Step →", new Color(46, 204, 113));
-        nextStepButton.setEnabled(false);
-
         languageSelector = new JComboBox<>(Language.values());
-        languageSelector.setFont(new Font("Inter", Font.BOLD, 14));
-        languageSelector.setBackground(Color.WHITE);
+        languageSelector.setFont(new Font("Inter", Font.BOLD, 13));
+        languageSelector.setBackground(COLOR_PANEL);
+        languageSelector.setForeground(Color.WHITE);
         
+        startButton = createStyledButton("Reset", new Color(70, 70, 70));
+        backStepButton = createStyledButton("← Back", new Color(60, 60, 60));
+        nextStepButton = createStyledButton("Step →", COLOR_ACCENT);
+        autoPlayButton = createStyledButton("▶ Play", new Color(46, 204, 113));
+        
+        backStepButton.setEnabled(false);
+        nextStepButton.setEnabled(false);
+        autoPlayButton.setEnabled(false);
+
+        controlPanel.add(new JLabel("Lang:"));
+        ((JLabel)controlPanel.getComponent(controlPanel.getComponentCount()-1)).setForeground(COLOR_TEXT);
+        controlPanel.add(languageSelector);
+        controlPanel.add(startButton);
+        controlPanel.add(new JSeparator(JSeparator.VERTICAL));
+        controlPanel.add(backStepButton);
+        controlPanel.add(nextStepButton);
+        controlPanel.add(autoPlayButton);
+        
+        mainPanel.add(controlPanel, BorderLayout.SOUTH);
+
+        add(mainPanel);
+
+        // Setup AutoPlay Timer
+        autoPlayTimer = new Timer(800, e -> {
+            if (nextStepButton.isEnabled()) {
+                stepForward();
+            } else {
+                stopAutoPlay();
+            }
+        });
+    }
+
+    private JButton createStyledButton(String text, Color bg) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Inter", Font.BOLD, 13));
+        btn.setBackground(bg);
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(bg.darker()),
+            BorderFactory.createEmptyBorder(8, 20, 8, 20)
+        ));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    private void setupCallbacks() {
+        startButton.addActionListener(e -> resetAndStart());
+        nextStepButton.addActionListener(e -> stepForward());
+        backStepButton.addActionListener(e -> stepBackward());
+        autoPlayButton.addActionListener(e -> toggleAutoPlay());
+
         languageSelector.addActionListener(e -> {
             Language selected = (Language) languageSelector.getSelectedItem();
             if (selected == Language.PYTHON) {
@@ -157,35 +237,12 @@ public class VisualizerUI extends JFrame {
             }
         });
 
-        controlPanel.add(new JLabel("Language:"));
-        controlPanel.add(languageSelector);
-        controlPanel.add(startButton);
-        controlPanel.add(nextStepButton);
-        mainPanel.add(controlPanel, BorderLayout.SOUTH);
-
-        add(mainPanel);
-    }
-
-    private JButton createStyledButton(String text, Color bg) {
-        JButton btn = new JButton(text);
-        btn.setFont(new Font("Inter", Font.BOLD, 14));
-        btn.setBackground(bg);
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setBorder(new EmptyBorder(10, 25, 10, 25));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        return btn;
-    }
-
-    private void setupCallbacks() {
-        startButton.addActionListener(e -> resetAndStart());
-        nextStepButton.addActionListener(e -> stepForward());
-
         engine.setStepListener(new ExecutionEngine.StepListener() {
             @Override
             public void onStepStart(int pc, String line) {
                 highlightLine(pc);
                 logArea.append("PC " + pc + ": " + line + "\n");
+                backStepButton.setEnabled(pc > 0);
             }
 
             @Override
@@ -202,12 +259,15 @@ public class VisualizerUI extends JFrame {
             public void onExecutionComplete(int totalSteps, int variablesCount) {
                 logArea.append("\nExecution finished.\n");
                 nextStepButton.setEnabled(false);
+                autoPlayButton.setEnabled(false);
+                stopAutoPlay();
                 clearHighlight();
             }
         });
     }
 
     private void resetAndStart() {
+        stopAutoPlay();
         String code = codeInput.getText();
         Language lang = (Language) languageSelector.getSelectedItem();
         linesToExecute = parser.parseCode(code, lang);
@@ -231,15 +291,40 @@ public class VisualizerUI extends JFrame {
         engine.prepare(linesToExecute, lang);
         
         nextStepButton.setEnabled(true);
+        autoPlayButton.setEnabled(true);
+        backStepButton.setEnabled(false);
         startButton.setText("Restart");
         clearHighlight();
     }
 
     private void stepForward() {
         boolean hasMore = engine.executeNextStep();
-        if (!hasMore) {
+        if (hasMore) {
+            flowchartPanel.setCurrentPC(engine.getPC());
+        } else {
             engine.getStepListener().onExecutionComplete(engine.getPC(), engine.getVariableStore().size());
         }
+    }
+
+    private void stepBackward() {
+        // To be implemented in ExecutionEngine
+        logArea.append("Backward stepping coming soon...\n");
+    }
+
+    private void toggleAutoPlay() {
+        if (autoPlayTimer.isRunning()) {
+            stopAutoPlay();
+        } else {
+            autoPlayButton.setText("⏸ Pause");
+            autoPlayButton.setBackground(new Color(231, 76, 60));
+            autoPlayTimer.start();
+        }
+    }
+
+    private void stopAutoPlay() {
+        autoPlayTimer.stop();
+        autoPlayButton.setText("▶ Play");
+        autoPlayButton.setBackground(new Color(46, 204, 113));
     }
 
     private void updateVariableTable(Map<String, Integer> vars) {
@@ -256,10 +341,8 @@ public class VisualizerUI extends JFrame {
             int end = codeInput.getLineEndOffset(lineIndex);
             Highlighter h = codeInput.getHighlighter();
             currentHighlight = h.addHighlight(start, end, 
-                new DefaultHighlighter.DefaultHighlightPainter(new Color(255, 255, 0, 100)));
-        } catch (Exception e) {
-            // Probably an empty line or out of bounds
-        }
+                new DefaultHighlighter.DefaultHighlightPainter(new Color(174, 11, 5, 60)));
+        } catch (Exception e) { }
     }
 
     private void clearHighlight() {
