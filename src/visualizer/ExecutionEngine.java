@@ -24,10 +24,12 @@ public class ExecutionEngine {
     private int pc; // Program Counter (index in lines list)
     private StepListener listener;
     private Language currentLanguage = Language.JAVA;
+    private java.util.Stack<StateSnapshot> history;
 
     public ExecutionEngine() {
         this.variableStore = new LinkedHashMap<>();
         this.pc = 0;
+        this.history = new java.util.Stack<>();
     }
 
     public void setStepListener(StepListener listener) {
@@ -46,6 +48,7 @@ public class ExecutionEngine {
         this.pc = 0;
         this.currentLanguage = lang;
         this.variableStore.clear();
+        this.history.clear();
     }
 
     /**
@@ -62,17 +65,22 @@ public class ExecutionEngine {
         String commentPrefix = (currentLanguage == Language.PYTHON) ? "#" : "//";
         if (line.isEmpty() || line.startsWith(commentPrefix)) {
             pc++;
-            return executeNextStep(); // Recursively skip until we find code or end
+            return executeNextStep(); 
         }
+
+        // Save current state before executing
+        history.push(new StateSnapshot(pc, variableStore));
 
         if (listener != null) listener.onStepStart(pc, line);
 
         try {
             if (line.startsWith("if")) {
                 handleIf(line);
+            } else if (line.startsWith("while")) {
+                handleWhile(line);
             } else if (line.equals("}") || line.equals("pass")) {
-                // Closing brace of an if-block or python pass, just skip it
-                pc++;
+                // Check if we need to jump back for a loop
+                handleBlockEnd();
             } else {
                 Statement stmt = parseStatement(line);
                 if (stmt != null) stmt.execute(variableStore);
@@ -85,63 +93,100 @@ public class ExecutionEngine {
 
         } catch (Exception e) {
             if (listener != null) listener.onError(pc, line, e.getMessage());
-            pc++; // Advance even on error to avoid infinite loops
+            pc++; 
         }
 
         return pc < lines.size();
     }
 
+    /**
+     * Reverts to the previous state.
+     */
+    public boolean stepBack() {
+        if (history.isEmpty()) return false;
+        
+        StateSnapshot snapshot = history.pop();
+        this.pc = snapshot.getPC();
+        this.variableStore.clear();
+        this.variableStore.putAll(snapshot.getVariableStore());
+        
+        if (listener != null) listener.onStepStart(pc, lines.get(pc));
+        return true;
+    }
+
     private void handleIf(String line) {
-        String conditionExpr;
-        int blockStartOffset = 1;
-
-        if (currentLanguage == Language.PYTHON) {
-            // Python: if condition:
-            if (!line.endsWith(":")) {
-                throw new RuntimeException("Python syntax error: Missing ':' after if condition.");
-            }
-            conditionExpr = line.substring(2, line.length() - 1).strip();
-        } else {
-            // Java: if (condition) {
-            int startParen = line.indexOf('(');
-            int endParen = line.lastIndexOf(')');
-            if (startParen == -1 || endParen == -1 || endParen < startParen) {
-                throw new RuntimeException("Malformed if statement: " + line);
-            }
-            conditionExpr = line.substring(startParen + 1, endParen).strip();
-        }
-
+        String conditionExpr = extractCondition(line);
         boolean condition = ExpressionEvaluator.evaluateBoolean(conditionExpr, variableStore);
 
         if (condition) {
             pc++;
         } else {
-            // Condition false: skip until matching end-of-block
-            if (currentLanguage == Language.PYTHON) {
-                // For simplified Python, we skip all subsequent indented lines
-                // Since our parser already stripped leading spaces, we might need a better way.
-                // However, for this visualizer, we assume blocks are followd by ":" lines
-                // and for now just skip the next line if it's not another "if" or top-level.
-                // A better approach: check indentation levels in CodeParser.
-                pc++; 
-            } else {
-                // Java: skip until matching '}'
-                int braceCount = 0;
-                if (line.contains("{")) braceCount = 1;
-                
-                pc++; 
-                while (pc < lines.size()) {
-                    String l = lines.get(pc).strip();
-                    if (l.contains("{")) braceCount++;
-                    if (l.contains("}")) {
-                        braceCount--;
-                        if (braceCount <= 0) {
-                            pc++; 
-                            return;
-                        }
+            skipBlock(line);
+        }
+    }
+
+    private void handleWhile(String line) {
+        String conditionExpr = extractCondition(line);
+        boolean condition = ExpressionEvaluator.evaluateBoolean(conditionExpr, variableStore);
+
+        if (condition) {
+            pc++; // Enter loop
+        } else {
+            skipBlock(line); // Skip loop
+        }
+    }
+
+    private void handleBlockEnd() {
+        // Scan backwards to find the matching start (if or while)
+        int braceCount = 1;
+        int searchPc = pc - 1;
+        while (searchPc >= 0) {
+            String l = lines.get(searchPc).strip();
+            if (l.contains("}")) braceCount++;
+            if (l.contains("{") || l.endsWith(":")) {
+                braceCount--;
+                if (braceCount == 0) {
+                    if (l.startsWith("while")) {
+                        pc = searchPc; // Jump back to while condition
+                        return;
                     }
-                    pc++;
+                    break;
                 }
+            }
+            searchPc--;
+        }
+        pc++; // It was an if block, just continue
+    }
+
+    private String extractCondition(String line) {
+        if (currentLanguage == Language.PYTHON) {
+            return line.substring(line.indexOf("if") != -1 ? line.indexOf("if")+2 : line.indexOf("while")+5, line.length() - 1).strip();
+        } else {
+            int startParen = line.indexOf('(');
+            int endParen = line.lastIndexOf(')');
+            if (startParen == -1 || endParen == -1) throw new RuntimeException("Malformed condition: " + line);
+            return line.substring(startParen + 1, endParen).strip();
+        }
+    }
+
+    private void skipBlock(String startLine) {
+        if (currentLanguage == Language.PYTHON) {
+             pc++; // Simplification: skip one line for false condition in Python
+        } else {
+            int braceCount = 0;
+            if (startLine.contains("{")) braceCount = 1;
+            pc++;
+            while (pc < lines.size()) {
+                String l = lines.get(pc).strip();
+                if (l.contains("{")) braceCount++;
+                if (l.contains("}")) {
+                    braceCount--;
+                    if (braceCount <= 0) {
+                        pc++;
+                        return;
+                    }
+                }
+                pc++;
             }
         }
     }
