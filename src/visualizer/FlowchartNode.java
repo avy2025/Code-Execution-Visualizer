@@ -21,12 +21,22 @@ public class FlowchartNode {
     private int width = 140;
     private int height = 60;
 
+    private int lineIndex = -1;
+
     public FlowchartNode(String text, NodeType type) {
         this.text = text;
         this.type = type;
         this.nextNodes = new ArrayList<>();
         this.position = new Point(0, 0);
     }
+
+    public FlowchartNode(String text, NodeType type, int lineIndex) {
+        this(text, type);
+        this.lineIndex = lineIndex;
+    }
+
+    public int getLineIndex() { return lineIndex; }
+    public void setLineIndex(int index) { this.lineIndex = index; }
 
     public void addNextNode(FlowchartNode node) {
         if (node != null) {
