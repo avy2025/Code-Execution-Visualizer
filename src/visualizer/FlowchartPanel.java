@@ -13,6 +13,9 @@ import java.util.Set;
  */
 public class FlowchartPanel extends JPanel {
 
+    private FlowchartNode root;
+    private final int VERTICAL_GAP = 60;
+    private final int HORIZONTAL_GAP = 180;
     private int currentPC = -1;
 
     public FlowchartPanel() {

@@ -161,7 +161,10 @@ public class VisualizerUI extends JFrame {
 
         rightTabbedPane.addTab("Dashboard", dashboardPanel);
         rightTabbedPane.addTab("Flowchart", flowchartScroll);
-        rightTabbedPane.addTab("Learning Center", new LearningCenter());
+        rightTabbedPane.addTab("Learning Center", new LearningCenter(code -> {
+            codeInput.setText(code);
+            resetAndStart(); // Auto-parse the new code
+        }));
 
         mainSplit.setLeftComponent(inputPanel);
         mainSplit.setRightComponent(rightTabbedPane);
@@ -307,8 +310,14 @@ public class VisualizerUI extends JFrame {
     }
 
     private void stepBackward() {
-        // To be implemented in ExecutionEngine
-        logArea.append("Backward stepping coming soon...\n");
+        boolean success = engine.stepBack();
+        if (success) {
+            flowchartPanel.setCurrentPC(engine.getPC());
+            updateVariableTable(engine.getVariableStore());
+            logArea.append("Stepped back to PC " + engine.getPC() + "\n");
+            nextStepButton.setEnabled(true);
+            autoPlayButton.setEnabled(true);
+        }
     }
 
     private void toggleAutoPlay() {
