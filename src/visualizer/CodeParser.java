@@ -125,8 +125,7 @@ public class CodeParser {
         return line.matches(".*(public|private|protected)?\\s*(class|interface|enum)\\s+\\w+.*") ||
                line.matches(".*public\\s+static\\s+void\\s+main\\s*\\(.*") ||
                line.matches("^package\\s+.*;$") ||
-               line.matches("^import\\s+.*;$") ||
-               line.equals("{") || line.equals("}"); 
+               line.matches("^import\\s+.*;$");
     }
 
     /** @deprecated Use {@link #parseCode(String, Language)} instead. */
