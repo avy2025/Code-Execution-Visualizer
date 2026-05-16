@@ -12,13 +12,10 @@ public class FlowchartGenerator {
             return new FlowchartNode("Empty Code", FlowchartNode.NodeType.START);
         }
 
-        FlowchartNode start = new FlowchartNode("START", FlowchartNode.NodeType.START);
-        FlowchartNode end = new FlowchartNode("END", FlowchartNode.NodeType.END);
+        FlowchartNode start = new FlowchartNode("START", FlowchartNode.NodeType.START, -1);
+        FlowchartNode end = new FlowchartNode("END", FlowchartNode.NodeType.END, -1);
         
         FlowchartNode current = start;
-        
-        // This is a naive implementation that handles sequential statements and simple IF blocks.
-        // It uses index-based traversal to manage blocks.
         
         int i = 0;
         while (i < lines.size()) {
@@ -29,30 +26,32 @@ public class FlowchartGenerator {
                 continue;
             }
 
-            if (line.startsWith("if")) {
-                FlowchartNode decision = new FlowchartNode(line, FlowchartNode.NodeType.DECISION);
+            if (line.startsWith("if") || line.startsWith("while")) {
+                boolean isWhile = line.startsWith("while");
+                FlowchartNode decision = new FlowchartNode(line, FlowchartNode.NodeType.DECISION, i);
                 current.addNextNode(decision);
                 
-                // Find true branch
                 int openBraceIdx = findOpenBrace(lines, i);
                 int closeBraceIdx = findMatchingBrace(lines, openBraceIdx);
                 
                 if (openBraceIdx != -1 && closeBraceIdx != -1) {
-                    List<String> trueLines = lines.subList(openBraceIdx + 1, closeBraceIdx);
-                    FlowchartNode trueBranchStart = generateSubPath(trueLines);
-                    decision.addNextNode(trueBranchStart);
+                    List<String> bodyLines = lines.subList(openBraceIdx + 1, closeBraceIdx);
+                    FlowchartNode bodyStart = generateSubPath(bodyLines, openBraceIdx + 1);
+                    decision.addNextNode(bodyStart);
                     
-                    // The true branch should eventually lead back to the node after the if-block
-                    // However, for simplicity in our basic renderer, we'll just track the decision.
-                    // A more robust graph builder would use a join node.
+                    if (isWhile) {
+                        // Point the last node of the body back to the decision
+                        FlowchartNode bodyLast = findLastNode(bodyStart);
+                        if (bodyLast != null) bodyLast.addNextNode(decision);
+                    }
                     
                     i = closeBraceIdx + 1;
-                    current = decision; // For now, we continue from decision for the false branch path
+                    current = decision; 
                 } else {
                     i++;
                 }
             } else {
-                FlowchartNode process = new FlowchartNode(line, FlowchartNode.NodeType.PROCESS);
+                FlowchartNode process = new FlowchartNode(line, FlowchartNode.NodeType.PROCESS, i);
                 current.addNextNode(process);
                 current = process;
                 i++;
@@ -63,17 +62,17 @@ public class FlowchartGenerator {
         return start;
     }
 
-    private FlowchartNode generateSubPath(List<String> lines) {
+    private FlowchartNode generateSubPath(List<String> lines, int baseIdx) {
         if (lines.isEmpty()) return null;
         
         FlowchartNode head = null;
         FlowchartNode current = null;
         
-        for (String line : lines) {
-            line = line.strip();
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i).strip();
             if (line.isEmpty() || line.startsWith("//") || line.equals("}") || line.equals("{")) continue;
             
-            FlowchartNode node = new FlowchartNode(line, FlowchartNode.NodeType.PROCESS);
+            FlowchartNode node = new FlowchartNode(line, FlowchartNode.NodeType.PROCESS, baseIdx + i);
             if (head == null) {
                 head = node;
                 current = node;
@@ -83,6 +82,17 @@ public class FlowchartGenerator {
             }
         }
         return head;
+    }
+
+    private FlowchartNode findLastNode(FlowchartNode node) {
+        if (node == null) return null;
+        if (node.getNextNodes().isEmpty()) return node;
+        // Simple heuristic: follow the last branch
+        FlowchartNode last = node;
+        while (!last.getNextNodes().isEmpty()) {
+            last = last.getNextNodes().get(last.getNextNodes().size() - 1);
+        }
+        return last;
     }
 
     private int findOpenBrace(List<String> lines, int startIdx) {
