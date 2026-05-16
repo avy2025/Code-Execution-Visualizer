@@ -13,17 +13,21 @@ import java.util.Set;
  */
 public class FlowchartPanel extends JPanel {
 
-    private FlowchartNode root;
-    private final int VERTICAL_GAP = 60;
-    private final int HORIZONTAL_GAP = 180;
+    private int currentPC = -1;
 
     public FlowchartPanel() {
-        setBackground(new Color(252, 253, 255));
+        setBackground(new Color(25, 25, 25));
     }
 
     public void setFlowchart(FlowchartNode root) {
         this.root = root;
+        this.currentPC = -1;
         calculateLayout();
+        repaint();
+    }
+
+    public void setCurrentPC(int pc) {
+        this.currentPC = pc;
         repaint();
     }
 
@@ -32,7 +36,7 @@ public class FlowchartPanel extends JPanel {
         
         // Simple vertical layout
         Set<FlowchartNode> visited = new HashSet<>();
-        calculateLayoutNode(root, getWidth() / 2, 50, visited);
+        calculateLayoutNode(root, getWidth() > 0 ? getWidth() / 2 : 400, 50, visited);
         
         // Adjust panel size if needed
         int maxWidth = 0;
@@ -41,7 +45,7 @@ public class FlowchartPanel extends JPanel {
             maxWidth = Math.max(maxWidth, node.getPosition().x + node.getWidth());
             maxHeight = Math.max(maxHeight, node.getPosition().y + node.getHeight());
         }
-        setPreferredSize(new Dimension(maxWidth + 100, maxHeight + 100));
+        setPreferredSize(new Dimension(maxWidth + 200, maxHeight + 100));
         revalidate();
     }
 
@@ -99,6 +103,8 @@ public class FlowchartPanel extends JPanel {
         Color color1, color2, textColor;
         Shape shape;
 
+        boolean isActive = (node.getLineIndex() == currentPC);
+
         switch (node.getType()) {
             case START:
             case END:
@@ -110,21 +116,27 @@ public class FlowchartPanel extends JPanel {
             case DECISION:
                 color1 = new Color(241, 196, 15);
                 color2 = new Color(243, 156, 18);
-                textColor = new Color(60, 60, 60);
+                textColor = new Color(40, 40, 40);
                 shape = createDiamond(x, y, w, h);
                 break;
             case PROCESS:
             default:
-                color1 = Color.WHITE;
-                color2 = new Color(248, 249, 250);
-                textColor = new Color(44, 62, 80);
-                shape = new RoundRectangle2D.Double(x, y, w, h, 12, 12);
+                color1 = new Color(45, 45, 48);
+                color2 = new Color(37, 37, 38);
+                textColor = new Color(212, 212, 212);
+                shape = new RoundRectangle2D.Double(x, y, w, h, 8, 8);
                 break;
         }
 
+        if (isActive) {
+            color1 = new Color(174, 11, 5); // Imperial Red
+            color2 = new Color(139, 0, 0);
+            textColor = Color.WHITE;
+        }
+
         // Shadow
-        g2.setColor(new Color(0, 0, 0, 30));
-        g2.fill(getTranslatedShape(shape, 3, 3));
+        g2.setColor(new Color(0, 0, 0, 80));
+        g2.fill(getTranslatedShape(shape, 4, 4));
 
         // Background Gradient
         GradientPaint gp = new GradientPaint(x, y, color1, x, y + h, color2);
@@ -132,8 +144,13 @@ public class FlowchartPanel extends JPanel {
         g2.fill(shape);
 
         // Border
-        g2.setColor(new Color(0, 0, 0, 40));
-        g2.setStroke(new BasicStroke(1.5f));
+        if (isActive) {
+            g2.setColor(Color.WHITE);
+            g2.setStroke(new BasicStroke(2.5f));
+        } else {
+            g2.setColor(new Color(63, 63, 70));
+            g2.setStroke(new BasicStroke(1.5f));
+        }
         g2.draw(shape);
 
         // Text
