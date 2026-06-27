@@ -8,6 +8,15 @@ import javax.swing.text.Highlighter;
 import java.awt.*;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+
+import visualizer.learning.analytics.PlaceholderLearningAnalyticsService;
+import visualizer.learning.bridge.StepListenerBridge;
+import visualizer.learning.bridge.StepListenerChain;
+import visualizer.learning.models.LearningSession;
+import visualizer.learning.services.PlaceholderExplanationService;
+import visualizer.learning.services.PlaceholderHintService;
+import visualizer.learning.services.PlaceholderQuizService;
 
 /**
  * VisualizerUI provides a professional Swing interface for code execution.
@@ -27,6 +36,7 @@ public class VisualizerUI extends JFrame {
     private FlowchartGenerator flowchartGenerator;
     private ExecutionEngine engine;
     private CodeParser parser;
+    private StepListenerBridge learningBridge;
     private List<String> linesToExecute;
     private Object currentHighlight;
     private JComboBox<Language> languageSelector;
@@ -46,7 +56,13 @@ public class VisualizerUI extends JFrame {
         
         engine = new ExecutionEngine();
         parser = new CodeParser();
-        
+        learningBridge = new StepListenerBridge(
+                engine,
+                new PlaceholderExplanationService(),
+                new PlaceholderHintService(),
+                new PlaceholderQuizService(),
+                new PlaceholderLearningAnalyticsService());
+
         setupUI();
         setupCallbacks();
     }
@@ -240,7 +256,7 @@ public class VisualizerUI extends JFrame {
             }
         });
 
-        engine.setStepListener(new ExecutionEngine.StepListener() {
+        ExecutionEngine.StepListener uiListener = new ExecutionEngine.StepListener() {
             @Override
             public void onStepStart(int pc, String line) {
                 highlightLine(pc);
@@ -266,7 +282,8 @@ public class VisualizerUI extends JFrame {
                 stopAutoPlay();
                 clearHighlight();
             }
-        });
+        };
+        engine.setStepListener(StepListenerChain.of(uiListener, learningBridge));
     }
 
     private void resetAndStart() {
@@ -292,7 +309,13 @@ public class VisualizerUI extends JFrame {
         }
 
         engine.prepare(linesToExecute, lang);
-        
+
+        learningBridge.beginSession(new LearningSession(
+                UUID.randomUUID().toString(),
+                code,
+                linesToExecute,
+                lang));
+
         nextStepButton.setEnabled(true);
         autoPlayButton.setEnabled(true);
         backStepButton.setEnabled(false);
