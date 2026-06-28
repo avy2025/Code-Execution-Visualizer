@@ -11,6 +11,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import visualizer.learning.analytics.PlaceholderLearningAnalyticsService;
+import visualizer.learning.api.LearningApiClient;
+import visualizer.learning.api.LearningApiConfig;
+import visualizer.learning.api.MockLearningApiClient;
 import visualizer.learning.bridge.StepListenerBridge;
 import visualizer.learning.bridge.StepListenerChain;
 import visualizer.learning.models.LearningSession;
@@ -56,12 +59,13 @@ public class VisualizerUI extends JFrame {
         
         engine = new ExecutionEngine();
         parser = new CodeParser();
+        LearningApiClient learningApiClient = new MockLearningApiClient(LearningApiConfig.defaults());
         learningBridge = new StepListenerBridge(
                 engine,
-                new PlaceholderExplanationService(),
-                new PlaceholderHintService(),
-                new PlaceholderQuizService(),
-                new PlaceholderLearningAnalyticsService());
+                new PlaceholderExplanationService(learningApiClient),
+                new PlaceholderHintService(learningApiClient),
+                new PlaceholderQuizService(learningApiClient),
+                new PlaceholderLearningAnalyticsService(learningApiClient));
 
         setupUI();
         setupCallbacks();
