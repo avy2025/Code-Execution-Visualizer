@@ -25,6 +25,7 @@ public final class PlaceholderLearningAnalyticsService implements LearningAnalyt
     private final AtomicInteger errorCount = new AtomicInteger();
     private final AtomicInteger hintRequestCount = new AtomicInteger();
     private final AtomicInteger quizAnswerCount = new AtomicInteger();
+    private final AtomicInteger quizGeneratedCount = new AtomicInteger();
     private volatile String activeSessionId;
     private volatile int lastTotalSteps;
     private volatile int lastVariableCount;
@@ -44,6 +45,7 @@ public final class PlaceholderLearningAnalyticsService implements LearningAnalyt
         errorCount.set(0);
         hintRequestCount.set(0);
         quizAnswerCount.set(0);
+        quizGeneratedCount.set(0);
         lastTotalSteps = 0;
         lastVariableCount = 0;
         activeSessionId = session.getSessionId();
@@ -77,6 +79,11 @@ public final class PlaceholderLearningAnalyticsService implements LearningAnalyt
     }
 
     @Override
+    public void recordQuizGenerated(LearningSession session) {
+        quizGeneratedCount.incrementAndGet();
+    }
+
+    @Override
     public void onSessionEnd(LearningSession session) {
         // metrics retained until next session start
     }
@@ -89,6 +96,7 @@ public final class PlaceholderLearningAnalyticsService implements LearningAnalyt
         metrics.put("errorCount", errorCount.get());
         metrics.put("hintRequestCount", hintRequestCount.get());
         metrics.put("quizAnswerCount", quizAnswerCount.get());
+        metrics.put("quizGeneratedCount", quizGeneratedCount.get());
         return Collections.unmodifiableMap(metrics);
     }
 
