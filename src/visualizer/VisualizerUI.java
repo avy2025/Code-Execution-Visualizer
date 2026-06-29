@@ -20,6 +20,7 @@ import visualizer.learning.models.LearningSession;
 import visualizer.learning.services.PlaceholderExplanationService;
 import visualizer.learning.services.PlaceholderHintService;
 import visualizer.learning.services.PlaceholderQuizService;
+import visualizer.learning.ui.LearningCenterController;
 
 /**
  * VisualizerUI provides a professional Swing interface for code execution.
@@ -40,9 +41,15 @@ public class VisualizerUI extends JFrame {
     private ExecutionEngine engine;
     private CodeParser parser;
     private StepListenerBridge learningBridge;
+    private LearningCenter learningCenter;
+    private LearningCenterController learningCenterController;
+    private JSplitPane learningDockSplit;
+    private JButton learningModeButton;
+    private boolean learningModeEnabled;
     private List<String> linesToExecute;
     private Object currentHighlight;
     private JComboBox<Language> languageSelector;
+    private JPanel mainPanel;
 
     // Dark Theme Colors
     private static final Color COLOR_BG = new Color(30, 30, 30);
@@ -60,20 +67,40 @@ public class VisualizerUI extends JFrame {
         engine = new ExecutionEngine();
         parser = new CodeParser();
         LearningApiClient learningApiClient = new MockLearningApiClient(LearningApiConfig.defaults());
+        PlaceholderExplanationService explanationService = new PlaceholderExplanationService(learningApiClient);
+        PlaceholderHintService hintService = new PlaceholderHintService(learningApiClient);
+        PlaceholderQuizService quizService = new PlaceholderQuizService(learningApiClient);
+        PlaceholderLearningAnalyticsService analyticsService =
+                new PlaceholderLearningAnalyticsService(learningApiClient);
         learningBridge = new StepListenerBridge(
                 engine,
-                new PlaceholderExplanationService(learningApiClient),
-                new PlaceholderHintService(learningApiClient),
-                new PlaceholderQuizService(learningApiClient),
-                new PlaceholderLearningAnalyticsService(learningApiClient));
+                explanationService,
+                hintService,
+                quizService,
+                analyticsService);
 
         setupUI();
+        learningCenter = new LearningCenter();
+        learningCenterController = new LearningCenterController(learningCenter);
+        learningBridge.setPanelListener(learningCenterController);
+        wireLearningDock();
         setupCallbacks();
+    }
+
+    private void wireLearningDock() {
+        learningDockSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, mainPanel, learningCenter);
+        learningDockSplit.setResizeWeight(1.0);
+        learningDockSplit.setDividerSize(4);
+        learningDockSplit.setBorder(null);
+        learningDockSplit.setBackground(COLOR_BG);
+        learningCenter.setVisible(false);
+        add(learningDockSplit);
+        hideLearningPanel();
     }
 
     private void setupUI() {
         // Main Layout
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
         mainPanel.setBackground(COLOR_BG);
 
@@ -181,10 +208,6 @@ public class VisualizerUI extends JFrame {
 
         rightTabbedPane.addTab("Dashboard", dashboardPanel);
         rightTabbedPane.addTab("Flowchart", flowchartScroll);
-        rightTabbedPane.addTab("Learning Center", new LearningCenter(code -> {
-            codeInput.setText(code);
-            resetAndStart(); // Auto-parse the new code
-        }));
 
         mainSplit.setLeftComponent(inputPanel);
         mainSplit.setRightComponent(rightTabbedPane);
@@ -203,6 +226,7 @@ public class VisualizerUI extends JFrame {
         backStepButton = createStyledButton("← Back", new Color(60, 60, 60));
         nextStepButton = createStyledButton("Step →", COLOR_ACCENT);
         autoPlayButton = createStyledButton("▶ Play", new Color(46, 204, 113));
+        learningModeButton = createStyledButton("Learning Mode: OFF", new Color(55, 55, 58));
         
         backStepButton.setEnabled(false);
         nextStepButton.setEnabled(false);
@@ -216,10 +240,10 @@ public class VisualizerUI extends JFrame {
         controlPanel.add(backStepButton);
         controlPanel.add(nextStepButton);
         controlPanel.add(autoPlayButton);
+        controlPanel.add(new JSeparator(JSeparator.VERTICAL));
+        controlPanel.add(learningModeButton);
         
         mainPanel.add(controlPanel, BorderLayout.SOUTH);
-
-        add(mainPanel);
 
         // Setup AutoPlay Timer
         autoPlayTimer = new Timer(800, e -> {
@@ -250,6 +274,7 @@ public class VisualizerUI extends JFrame {
         nextStepButton.addActionListener(e -> stepForward());
         backStepButton.addActionListener(e -> stepBackward());
         autoPlayButton.addActionListener(e -> toggleAutoPlay());
+        learningModeButton.addActionListener(e -> toggleLearningMode());
 
         languageSelector.addActionListener(e -> {
             Language selected = (Language) languageSelector.getSelectedItem();
@@ -344,7 +369,37 @@ public class VisualizerUI extends JFrame {
             logArea.append("Stepped back to PC " + engine.getPC() + "\n");
             nextStepButton.setEnabled(true);
             autoPlayButton.setEnabled(true);
+            learningBridge.syncCurrentStep(engine.getPC());
         }
+    }
+
+    private void toggleLearningMode() {
+        learningModeEnabled = !learningModeEnabled;
+        if (learningModeEnabled) {
+            learningModeButton.setText("Learning Mode: ON");
+            learningModeButton.setBackground(COLOR_ACCENT);
+            learningCenter.setVisible(true);
+            showLearningPanel();
+        } else {
+            learningModeButton.setText("Learning Mode: OFF");
+            learningModeButton.setBackground(new Color(55, 55, 58));
+            hideLearningPanel();
+            learningCenter.setVisible(false);
+        }
+    }
+
+    private void showLearningPanel() {
+        SwingUtilities.invokeLater(() -> {
+            int width = learningDockSplit.getWidth();
+            if (width <= 0) {
+                width = getWidth();
+            }
+            learningDockSplit.setDividerLocation(Math.max(0, width - learningCenter.getPreferredSize().width));
+        });
+    }
+
+    private void hideLearningPanel() {
+        SwingUtilities.invokeLater(() -> learningDockSplit.setDividerLocation(1.0));
     }
 
     private void toggleAutoPlay() {
