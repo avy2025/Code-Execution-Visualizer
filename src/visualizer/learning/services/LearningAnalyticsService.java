@@ -52,6 +52,13 @@ public interface LearningAnalyticsService {
     void recordQuizAnswer(LearningSession session, String questionId, boolean correct);
 
     /**
+     * Records a quiz generation event.
+     *
+     * @param session active session
+     */
+    void recordQuizGenerated(LearningSession session);
+
+    /**
      * Called when a learning session ends.
      *
      * @param session session context
