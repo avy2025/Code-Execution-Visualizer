@@ -94,7 +94,7 @@ Internal state management is strictly controlled.
    ```
 3. Compile the source code:
    ```bash
-   javac -d bin src/visualizer/*.java
+   javac -encoding UTF-8 -sourcepath src -d bin src/visualizer/*.java
    ```
 4. Run the application:
    ```bash
