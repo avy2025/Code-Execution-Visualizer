@@ -15,27 +15,68 @@ A powerful Java Swing-based desktop application designed to visualize step-by-st
 - **Learn & Memorize Hub**: A dedicated section with pro tips on writing clean code and fun mental models to master your logic.
 - **Robust Error Handling**: Detects syntax errors, division by zero, undeclared variables, and more without crashing.
 
-## 🏗️ Architecture & OOP Principles
+## 🏗️ Architecture Design
 
-The project is built with a modular architecture following key Object-Oriented Programming (OOP) principles:
+The project is built with a modular and robust architecture following core Object-Oriented Programming (OOP) principles.
 
-### 1. Abstraction
-We use a `Statement` interface to define the behavior of any line of code. This allows the `ExecutionEngine` to execute any command without knowing its internal logic.
+### System Architecture Diagram
 
-### 2. Polymorphism
-Different statement types (Declaration, Assignment, Expression, and If) implement the `execute()` method. The engine treats them uniformly as `Statement` objects but they perform distinct operations.
+```mermaid
+graph TD
+    UI[VisualizerUI / GUI Layer] -->|Raw Code| Parser[CodeParser]
+    UI -->|Execution Control| Engine[ExecutionEngine]
+    
+    Parser -->|Generates| Statements[Statement Interfaces]
+    Parser -->|Uses| Types[Validation & Types]
+    
+    Engine -->|Evaluates| Expressions[ExpressionEvaluator]
+    Engine -->|Manages State| Memory[(Variable Store)]
+    Engine -->|Executes| Statements
+    
+    UI -->|Renders| Flowchart[FlowchartGenerator / Panel]
+    Flowchart -.->|Visualizes| Statements
+```
 
-### 3. Encapsulation
+### Class Hierarchy Model
+
+```mermaid
+classDiagram
+    class Statement {
+        <<interface>>
+        +execute(ExecutionEngine engine) void
+    }
+    class AssignmentStatement {
+        +execute(engine) void
+    }
+    class DeclarationStatement {
+        +execute(engine) void
+    }
+    class ExpressionStatement {
+        +execute(engine) void
+    }
+    class ExecutionEngine {
+        -variableStore: Map
+        -programCounter: int
+        +stepForward()
+        +reset()
+    }
+    
+    Statement <|.. AssignmentStatement
+    Statement <|.. DeclarationStatement
+    Statement <|.. ExpressionStatement
+    ExecutionEngine ..> Statement : executes
+```
+
+## 🧠 Core Principles
+
+### 1. Abstraction & Polymorphism
+We use a `Statement` interface to define the behavior of any line of code. This allows the `ExecutionEngine` to execute any command without knowing its internal logic. Different types (Declaration, Assignment, Expression) implement `execute()` uniquely.
+
+### 2. Encapsulation & State Management
 Internal state management is strictly controlled.
-- `ExecutionEngine` manages the `variableStore` (Map) and `Program Counter`.
-- `ExpressionEvaluator` encapsulates the arithmetic and boolean parsing logic.
-- UI components are separated from business logic.
-
-### 4. Separation of Concerns
-The application is divided into:
-- **Parser Layer**: Transforms raw strings into executable `Statement` objects.
-- **Execution Layer**: Manages data state and execution flow.
-- **Presentation Layer**: Handles Swing components, events, and visual updates.
+- `ExecutionEngine` manages the `variableStore` and controls the Program Counter (PC).
+- `ExpressionEvaluator` encapsulates complex arithmetic and logical parsing logic, shielding the engine from internal computation.
+- UI components (View) are strictly decoupled from execution logic (Model).
 
 ## 🚀 Getting Started
 
@@ -60,11 +101,11 @@ The application is divided into:
    java -cp bin visualizer.Main
    ```
 
-## 🛠️ Tech Stack
-- **Language**: Java
+## 🛠️ Technology Stack
+- **Language**: Java 8+
 - **Framework**: Java Swing (Desktop GUI)
-- **Graphics**: `Graphics2D` (for custom flowchart rendering)
-- **Utilities**: `JTable`, `Highlighter`, `JTabbedPane`.
+- **Graphics**: `Graphics2D` (for custom native flowchart rendering)
+- **Core Utilities**: `JTable`, Core Collections API, Custom Parsers.
 
 ---
 *Created by Antigravity - Advanced Agentic Coding Assistant*
